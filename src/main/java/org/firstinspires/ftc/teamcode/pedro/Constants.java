@@ -50,8 +50,8 @@ public class Constants {
         c.imuName.set("imu");
         c.xPodOffset.set(0.0);
         c.yPodOffset.set(0.0);
-        c.forwardTicksToInches.set(0.007372139516542203);
-        c.strafeTicksToInches.set(0.019975064976420383);
+        c.forwardTicksToInches.set(0.0031248);
+        c.strafeTicksToInches.set(0.0031248);
         c.xPodDirection.set(Encoder.FORWARD);
         c.yPodDirection.set(Encoder.FORWARD);
         c.imu.set(new RevHubIMU(new RevHubOrientationOnRobot(
