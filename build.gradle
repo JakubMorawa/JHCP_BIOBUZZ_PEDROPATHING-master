@@ -1,29 +1,59 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.2'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = 'https://maven.brott.dev/' }
+    }
+}
+
 apply plugin: 'com.android.application'
 
-//
-// build.gradle in TeamCode
-//
-// Most of the definitions for building your module reside in a common, shared
-// file 'build.common.gradle'. Being factored in this way makes it easier to
-// integrate updates to the FTC into your code. If you really need to customize
-// the build definitions, you can place those customizations in this file, but
-// please think carefully as to whether such customizations are really necessary
-// before doing so.
-
-// Custom definitions may go here
-
-// Include common definitions from above.
-apply from: '../build.common.gradle'
-apply from: '../build.dependencies.gradle'
-
 android {
-    namespace = 'org.firstinspires.ftc.teamcode'
+    namespace 'org.firstinspires.ftc.teamcode'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "org.firstinspires.ftc.teamcode"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 
     packagingOptions {
         jniLibs.useLegacyPackaging true
+        resources.excludes += "META-INF/*.kotlin_module"
     }
 }
 
 dependencies {
-    implementation project(':FtcRobotController')
+    // FTC SDK libraries (latest versions)
+    implementation 'org.firstinspires.ftc:RobotCore:12.0.0'
+    implementation 'org.firstinspires.ftc:Hardware:12.0.0'
+    implementation 'org.firstinspires.ftc:RobotServer:12.0.0'
+    
+    // Pedro Pathing Library
+    implementation 'com.github.pedropathing:pedro-pathing:v0.1.1'
+
+    // Local jars in the lib folder
+    implementation fileTree(dir: 'lib', include: ['*.jar'])
+
+    // Android dependencies
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
 }
