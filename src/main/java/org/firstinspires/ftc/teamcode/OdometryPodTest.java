@@ -14,8 +14,10 @@ public class OdometryPodTest extends LinearOpMode {
     TestBenchIMU bench = new TestBenchIMU();
     private DcMotorEx left_front; // Will get bot position on the X-axis
     private DcMotorEx left_back;
-    private DcMotor right_front;
+    private DcMotorEx right_front;
     private DcMotor right_back;
+
+    private DcMotor intakeMotor;
 
     // Constants for your specific odometry pod (update these!)
     // Example: REV Through Bore Encoder is 8192 counts per rev, or goBILDA/custom pods vary
@@ -29,8 +31,9 @@ public class OdometryPodTest extends LinearOpMode {
         bench.init(hardwareMap);
         left_front = hardwareMap.get(DcMotorEx.class, "left_front");
         left_back = hardwareMap.get(DcMotorEx.class, "left_back");
-        right_front = hardwareMap.get(DcMotor.class, "right_front");
+        right_front = hardwareMap.get(DcMotorEx.class, "right_front");
         right_back = hardwareMap.get(DcMotor.class, "right_back");
+        intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
 
         // Reset the encoder counts to zero at startup
         left_front.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -43,23 +46,37 @@ public class OdometryPodTest extends LinearOpMode {
         right_front.setDirection(DcMotorSimple.Direction.FORWARD);
         right_back.setDirection(DcMotorSimple.Direction.FORWARD);
 
+        intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+
         teleopHeadingAndStatus(); // Wait for start
         waitForStart();
 
         while (opModeIsActive()) {
             double x = gamepad1.left_stick_x;   // strafe
-            double y = -gamepad1.left_stick_y;  // forward
+            double y = gamepad1.left_stick_y;  // forward
             double r = gamepad1.right_stick_x;    // rotation
 
             move(y, x, r);
 
+            if (gamepad1.a){
+                intakeMotor.setPower(-1);
+            }
+            else if (gamepad1.dpad_down){
+                intakeMotor.setPower(.8);
+            }
+            else{
+                intakeMotor.setPower(0.0);
+            }
+
             // Read raw encoder ticks
-            int rawTicksX = left_front.getCurrentPosition(); //front is strafe
-            int rawTicksY = left_back.getCurrentPosition(); //back is forward
+            int rawTicksX = right_front.getCurrentPosition(); //front is strafe
+            int rawTicksY = left_back.getCurrentPosition(); //front is strafe
+            int rawTicksY2 = left_front.getCurrentPosition(); //back is forward
 
             // Calculate distance traveled in inches
             double distanceInchesX = rawTicksX * INCHES_PER_COUNT;
             double distanceInchesY = rawTicksY * INCHES_PER_COUNT;
+            double distanceInchesY2 = rawTicksY2 * INCHES_PER_COUNT;
 
             telemetry.addData("Movement-", "");
             telemetry.addData("Strafe", x);
@@ -67,13 +84,15 @@ public class OdometryPodTest extends LinearOpMode {
             telemetry.addData("Rotate", r);
 
             // Display data on Driver Hub screen
-            telemetry.addData("Encoder Status", "OK");
+            telemetry.addData("Odometry Pods-", "");
             telemetry.addData("Raw Ticks X", rawTicksX);
             telemetry.addData("Raw Ticks Y", rawTicksY);
+            telemetry.addData("Raw Ticks Y2", rawTicksY2);
             telemetry.addData("X-axis Distance (in)", "%.2f", distanceInchesX);
             telemetry.addData("Y-axis Distance (in)", "%.2f", distanceInchesY);
+            telemetry.addData("Y2-axis Distance (in)", "%.2f", distanceInchesY2);
 
-            telemetry.addData("IMU", "OK");
+            telemetry.addData("IMU-", "");
             telemetry.addData("Heading", bench.getHeading());
             telemetry.addData("Pitch", bench.getPitch());
             telemetry.addData("Roll", bench.getRoll());
@@ -94,19 +113,11 @@ public class OdometryPodTest extends LinearOpMode {
         double rightFrontPower = y - x - r;
         double rightBackPower = y + x - r;
 
-        double magnitude = Math.max(
-                1.0,
-                Math.max(
-                        Math.max(
-                                Math.abs(leftFrontPower),
-                                Math.abs(leftBackPower)
-                        ),
-                        Math.max(
-                                Math.abs(rightFrontPower),
-                                Math.abs(rightBackPower)
-                        )
-                )
-        );
+        double magnitude = 1.0;
+        magnitude = Math.max(magnitude, Math.abs(leftFrontPower));
+        magnitude = Math.max(magnitude, Math.abs(leftBackPower));
+        magnitude = Math.max(magnitude, Math.abs(rightFrontPower));
+        magnitude = Math.max(magnitude, Math.abs(rightBackPower));
 
         left_front.setPower(leftFrontPower / magnitude);
         left_back.setPower(leftBackPower / magnitude);

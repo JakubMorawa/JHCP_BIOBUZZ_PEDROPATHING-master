@@ -13,8 +13,8 @@ public class TestBenchIMU {
     public void init(HardwareMap hwMap) {
         imu = hwMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot revHubOrientationOnRobot =new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
+                RevHubOrientationOnRobot.LogoFacingDirection.BACKWARD,
+                RevHubOrientationOnRobot.UsbFacingDirection.RIGHT
         );
 
         imu.initialize(new IMU.Parameters(revHubOrientationOnRobot));
