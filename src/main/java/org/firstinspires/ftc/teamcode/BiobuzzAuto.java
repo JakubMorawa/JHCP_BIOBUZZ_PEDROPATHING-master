@@ -12,9 +12,9 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 public class BiobuzzAuto extends LinearOpMode {
     //control hub 
-    private DcMotor leftFront = null; //0
-    private DcMotor leftBack = null //1
-    private DcMotor rightFront = null; //2
+    private DcMotorEx leftFront = null; //0 //odom forward 1
+    private DcMotorEx leftBack = null //1  //odom forward 2
+    private DcMotorEx rightFront = null; //2 //odom strafe
     private DcMotor rightBack = null; //3
     //expansion hub
     private DcMotor intakeMotor = null; //0
@@ -29,6 +29,10 @@ public class BiobuzzAuto extends LinearOpMode {
     private final double FORWARD_SPEED = 1.0;
 
     private ElapsedTime runtime = new ElapsedTime();
+
+    final double COUNTS_PER_REV = 1900.0;
+    final double WHEEL_DIAMETER_INCHES = 1.88976; // e.g., 48mm odom wheel = 1.889 inches
+    final double INCHES_PER_COUNT = (Math.PI * WHEEL_DIAMETER_INCHES) / COUNTS_PER_REV;
 
 
     // ----------------- Helper Methods -----------------
@@ -65,6 +69,36 @@ public class BiobuzzAuto extends LinearOpMode {
 
         move(x, y, 0, duration);
 
+    }
+
+    private void moveByOdometry(double targetStrafeInches, double targetForwardInches) {
+        // Reset or grab starting positions
+        int startStrafeTicks = rightFront.getCurrentPosition();
+        int targetStrafeTicks = (int) (targetStrafeInches / INCHES_PER_COUNT);
+
+        int startForwardTicks = leftFront.getCurrentPosition();
+        int targetForwardTicks = (int) (targetForwardInches / INCHES_PER_COUNT);
+    
+        while (opModeIsActive() && Math.abs(rightFront.getCurrentPosition() - startStrafeTicks) < Math.abs(targetStrafeTicks)) {
+            // Apply drive power
+            move(0, Math.signum(targetStrafeInches) * FORWARD_SPEED, 0, 0.02);
+            
+            // Print live odometry telemetry while moving
+            telemetry.addData("Strafe Ticks", rightFront.getCurrentPosition());
+            telemetry.addData("Foward Ticks", leftFront.getCurrentPosition());
+            telemetry.update();
+        }
+        
+        while (opModeIsActive() && Math.abs(rightFront.getCurrentPosition() - startForwardTicks) < Math.abs(targetForwardTicks)) {
+            // Apply drive power
+            move(Math.signum(targetForwardInches) * FORWARD_SPEED, 0, 0, 0.02);
+            
+            // Print live odometry telemetry while moving
+            telemetry.addData("Strafe Ticks", rightFront.getCurrentPosition());
+            telemetry.addData("Foward Ticks", leftFront.getCurrentPosition());
+            telemetry.update();
+        }
+        stopDriveMotors();
     }
 
     private void stopDriveMotors() {
@@ -112,7 +146,8 @@ public class BiobuzzAuto extends LinearOpMode {
     public void runOpMode() {
 
         // Initialize hardware
-
+        bench.init(hardwareMap);
+        
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
         rightFront = hardwareMap.get(DcMotor.class, "rightFront");
@@ -123,6 +158,14 @@ public class BiobuzzAuto extends LinearOpMode {
         elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
 
         filterServo = hardwareMap.get(Servo.class, "filterServo");
+
+        // Reset the encoder counts to zero at startup
+        left_front.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        left_front.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        left_back.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        left_back.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        right_front.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        right_front.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         // Reverse motors on left side
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
