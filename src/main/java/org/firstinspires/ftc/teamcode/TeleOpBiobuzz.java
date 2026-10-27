@@ -20,7 +20,7 @@ public class TeleOpBiobuzz extends LinearOpMode {
     private DcMotor rightBack; //3
     //expansion hub
     private DcMotor intakeMotor; //0
-    //private DcMotor elevatorMotor; //1
+    private DcMotor elevatorMotor; //1
     //private DcMotor shooterMotor; //2
     
     //private Servo filterServo; //servo 0
@@ -42,7 +42,7 @@ public class TeleOpBiobuzz extends LinearOpMode {
         rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
         rightBack = hardwareMap.get(DcMotor.class, "rightBack");
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
-        // elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
+        elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
         // shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
         // filterServo = hardwareMap.get(Servo.class, "filterServo");
 
@@ -139,10 +139,10 @@ public class TeleOpBiobuzz extends LinearOpMode {
     }
 
     private void move(double y, double x, double r) {
-        double leftFrontPower = y - x + r;
-        double leftBackPower = y + x + r;
-        double rightFrontPower = y + x - r;
-        double rightBackPower = y - x - r;
+        double leftFrontPower = y + x - r;
+        double leftBackPower = y - x - r;
+        double rightFrontPower = y - x + r;
+        double rightBackPower = y + x + r;
 
         double magnitude = 1.0;
         magnitude = Math.max(magnitude, Math.abs(leftFrontPower));
