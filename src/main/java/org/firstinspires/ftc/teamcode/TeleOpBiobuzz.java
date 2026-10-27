@@ -20,10 +20,10 @@ public class TeleOpBiobuzz extends LinearOpMode {
     private DcMotor rightBack; //3
     //expansion hub
     private DcMotor intakeMotor; //0
-    private DcMotor elevatorMotor; //1
-    private DcMotor shooterMotor; //2
+    //private DcMotor elevatorMotor; //1
+    //private DcMotor shooterMotor; //2
     
-    private Servo filterServo; //servo 0
+    //private Servo filterServo; //servo 0
     
     private boolean prevStateB;
     private boolean prevStateRightBumper;
@@ -42,9 +42,9 @@ public class TeleOpBiobuzz extends LinearOpMode {
         rightFront = hardwareMap.get(DcMotorEx.class, "right_front");
         rightBack = hardwareMap.get(DcMotor.class, "right_back");
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
-        elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
-        shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
-        filterServo = hardwareMap.get(Servo.class, "filterServo");
+        // elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
+        // shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
+        // filterServo = hardwareMap.get(Servo.class, "filterServo");
 
         // Reset the encoder counts to zero at startup
         leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -80,25 +80,25 @@ public class TeleOpBiobuzz extends LinearOpMode {
                 intakeMotor.setPower(0.0);
             }
 
-            if (gamepad1.b && !prevStateB) {
-                elevatorMotor.setPower(1);
-            } else {
-                elevatorMotor.setPower(0);
-            }
-            prevStateB = gamepad1.b;
+            // if (gamepad1.b && !prevStateB) {
+            //     elevatorMotor.setPower(1);
+            // } else {
+            //     elevatorMotor.setPower(0);
+            // }
+            // prevStateB = gamepad1.b;
 
-            if (gamepad1.right_bumper && !prevStateRightBumper) {
-                filterServo.setPosition(0.1);
-            } else {
-                filterServo.setPosition(0);
-            }
-            prevStateRightBumper = gamepad1.right_bumper;
+            // if (gamepad1.right_bumper && !prevStateRightBumper) {
+            //     filterServo.setPosition(0.1);
+            // } else {
+            //     filterServo.setPosition(0);
+            // }
+            // prevStateRightBumper = gamepad1.right_bumper;
 
-            if (gamepad1.right_trigger > 0.1) {
-                shooterMotor.setPower(1);
-            } else {
-                shooterMotor.setPower(0);
-            }
+            // if (gamepad1.right_trigger > 0.1) {
+            //     shooterMotor.setPower(1);
+            // } else {
+            //     shooterMotor.setPower(0);
+            // }
 
             // Read raw encoder ticks
             int rawTicksX = rightFront.getCurrentPosition(); // front is strafe
