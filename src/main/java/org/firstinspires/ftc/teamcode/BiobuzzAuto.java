@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -13,7 +14,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 public class BiobuzzAuto extends LinearOpMode {
     //control hub 
     private DcMotorEx leftFront = null; //0 //odom forward 1
-    private DcMotorEx leftBack = null //1  //odom forward 2
+    private DcMotorEx leftBack = null;//1  //odom forward 2
     private DcMotorEx rightFront = null; //2 //odom strafe
     private DcMotor rightBack = null; //3
     //expansion hub
@@ -25,6 +26,8 @@ public class BiobuzzAuto extends LinearOpMode {
     
     double shooterMotorPower = 0;
     double elevatorPower = 0;
+
+    TestBenchIMU bench = new TestBenchIMU();
 
     private final double FORWARD_SPEED = 1.0;
 
@@ -51,10 +54,10 @@ public class BiobuzzAuto extends LinearOpMode {
         magnitude = Math.max(magnitude, Math.abs(rightFrontPower));
         magnitude = Math.max(magnitude, Math.abs(rightBackPower));
 
-        left_front.setPower(leftFrontPower / magnitude);
-        left_back.setPower(leftBackPower / magnitude);
-        right_front.setPower(rightFrontPower / magnitude);
-        right_back.setPower(rightBackPower / magnitude);
+        leftFront.setPower(leftFrontPower / magnitude);
+        leftBack.setPower(leftBackPower / magnitude);
+        rightFront.setPower(rightFrontPower / magnitude);
+        rightBack.setPower(rightBackPower / magnitude);
 
     }
 
@@ -102,10 +105,10 @@ public class BiobuzzAuto extends LinearOpMode {
     }
 
     private void stopDriveMotors() {
-        left_front.setPower(0);
-        right_front.setPower(0);
-        left_back.setPower(0);
-        right_back.setPower(0);
+        leftFront.setPower(0);
+        rightFront.setPower(0);
+        leftBack.setPower(0);
+        rightBack.setPower(0);
     }
 
 
@@ -148,9 +151,9 @@ public class BiobuzzAuto extends LinearOpMode {
         // Initialize hardware
         bench.init(hardwareMap);
         
-        leftFront = hardwareMap.get(DcMotor.class, "leftFront");
-        leftBack = hardwareMap.get(DcMotor.class, "leftBack");
-        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
+        leftFront = hardwareMap.get(DcMotorEx.class, "leftFront");
+        leftBack = hardwareMap.get(DcMotorEx.class, "leftBack");
+        rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
         rightBack = hardwareMap.get(DcMotor.class, "rightBack");
 
         shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
@@ -160,12 +163,12 @@ public class BiobuzzAuto extends LinearOpMode {
         filterServo = hardwareMap.get(Servo.class, "filterServo");
 
         // Reset the encoder counts to zero at startup
-        left_front.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        left_front.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        left_back.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        left_back.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        right_front.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        right_front.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftBack.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         // Reverse motors on left side
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
