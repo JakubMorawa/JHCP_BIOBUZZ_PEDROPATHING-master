@@ -37,10 +37,10 @@ public class TeleOpBiobuzz extends LinearOpMode {
     public void runOpMode() {
         // Initialize the hardware map
         bench.init(hardwareMap);
-        leftFront = hardwareMap.get(DcMotorEx.class, "left_front");
-        leftBack = hardwareMap.get(DcMotorEx.class, "left_back");
-        rightFront = hardwareMap.get(DcMotorEx.class, "right_front");
-        rightBack = hardwareMap.get(DcMotor.class, "right_back");
+        leftFront = hardwareMap.get(DcMotorEx.class, "leftFront");
+        leftBack = hardwareMap.get(DcMotorEx.class, "leftBack");
+        rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
+        rightBack = hardwareMap.get(DcMotor.class, "rightBack");
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
         // elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
         // shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
