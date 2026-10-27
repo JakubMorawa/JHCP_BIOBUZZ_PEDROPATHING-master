@@ -52,23 +52,21 @@ public class BiobuzzAuto extends LinearOpMode {
 
     private void move(double x, double y, double rx, double duration) {
 
-        double left_frontPower = -(y - x - rx) * FORWARD_SPEED; //fix later
-        double left_backPower = -(y + x - rx) * FORWARD_SPEED;
-        double right_frontPower = -(y + x + rx) * FORWARD_SPEED;
-        double right_backPower = -(y - x + rx) * FORWARD_SPEED;
+        double leftFrontPower = (y - x + r)*FORWARD_SPEED;
+        double leftBackPower = (y + x + r)*FORWARD_SPEED;
+        double rightFrontPower = (y + x - r)*FORWARD_SPEED;
+        double rightBackPower = (y - x - r)*FORWARD_SPEED;
 
-        left_front.setPower(left_frontPower);
-        right_front.setPower(right_frontPower);
-        left_back.setPower(left_backPower);
-        right_back.setPower(right_backPower);
+        double magnitude = 1.0;
+        magnitude = Math.max(magnitude, Math.abs(leftFrontPower));
+        magnitude = Math.max(magnitude, Math.abs(leftBackPower));
+        magnitude = Math.max(magnitude, Math.abs(rightFrontPower));
+        magnitude = Math.max(magnitude, Math.abs(rightBackPower));
 
-        runtime.reset();
-
-        while (opModeIsActive() && runtime.seconds() < duration) {
-            // Wait for move to complete
-        }
-
-        stopDriveMotors();
+        left_front.setPower(leftFrontPower / magnitude);
+        left_back.setPower(leftBackPower / magnitude);
+        right_front.setPower(rightFrontPower / magnitude);
+        right_back.setPower(rightBackPower / magnitude);
 
     }
 
