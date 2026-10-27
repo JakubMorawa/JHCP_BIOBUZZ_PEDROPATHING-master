@@ -11,103 +11,99 @@ import com.qualcomm.robotcore.hardware.Servo;
 @TeleOp(name = "TeleOp BioBuzz", group = "Test")
 public class TeleOpBiobuzz extends LinearOpMode {
 
-    // Define encoder motor port mapped in configuration
+   // Define encoder motor port mapped in configuration
     TestBenchIMU bench = new TestBenchIMU();
-    private DcMotorEx left_front; // Will get bot position on the X-axis
-    private DcMotorEx left_back;
-    private DcMotorEx right_front;
-    private DcMotor right_back;
-
-    private DcMotor intakeMotor;
-    private DcMotor elevatorMotor;
-    private DcMotor shooterMotor;
-
-    private Servo tunnelServo;
-
+    //control hub
+    private DcMotorEx leftFront; //0 forward1
+    private DcMotorEx leftBack; //1 forward2
+    private DcMotorEx rightFront; //2 strafe
+    private DcMotor rightBack; //3
+    //expansion hub
+    private DcMotor intakeMotor; //0
+    private DcMotor elevatorMotor; //1
+    private DcMotor shooterMotor; //2
+    
+    private Servo filterServo; //servo 0
+    
     private boolean prevStateB;
     private boolean prevStateRightBumper;
 
     // Constants for your specific odometry pod (update these!)
-    // Example: REV Through Bore Encoder is 8192 counts per rev, or goBILDA/custom pods vary
     final double COUNTS_PER_REV = 1900.0;
-    final double WHEEL_DIAMETER_INCHES = 1.88976; // e.g., 48mm odom wheel = 1.889 inches
+    final double WHEEL_DIAMETER_INCHES = 1.88976;
     final double INCHES_PER_COUNT = (Math.PI * WHEEL_DIAMETER_INCHES) / COUNTS_PER_REV;
 
     @Override
     public void runOpMode() {
         // Initialize the hardware map
         bench.init(hardwareMap);
-        left_front = hardwareMap.get(DcMotorEx.class, "left_front");
-        left_back = hardwareMap.get(DcMotorEx.class, "left_back");
-        right_front = hardwareMap.get(DcMotorEx.class, "right_front");
-        right_back = hardwareMap.get(DcMotor.class, "right_back");
+        leftFront = hardwareMap.get(DcMotorEx.class, "left_front");
+        leftBack = hardwareMap.get(DcMotorEx.class, "left_back");
+        rightFront = hardwareMap.get(DcMotorEx.class, "right_front");
+        rightBack = hardwareMap.get(DcMotor.class, "right_back");
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
-
         elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
         shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
+        filterServo = hardwareMap.get(Servo.class, "filterServo");
 
         // Reset the encoder counts to zero at startup
-        left_front.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        left_front.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        left_back.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        left_back.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        right_front.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        right_front.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftBack.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        left_front.setDirection(DcMotorSimple.Direction.REVERSE);
-        left_back.setDirection(DcMotorSimple.Direction.REVERSE);
-        right_front.setDirection(DcMotorSimple.Direction.FORWARD);
-        right_back.setDirection(DcMotorSimple.Direction.FORWARD);
-
+        leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
+        leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
+        rightBack.setDirection(DcMotorSimple.Direction.FORWARD);
         intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
-        teleopHeadingAndStatus(); // Wait for start
+        teleopHeadingAndStatus();
+
+        // Wait for start
         waitForStart();
 
         while (opModeIsActive()) {
-            double x = gamepad1.left_stick_x;   // strafe
-            double y = gamepad1.left_stick_y;  // forward
-            double r = gamepad1.right_stick_x;    // rotation
+            double x = gamepad1.left_stick_x; // strafe
+            double y = gamepad1.left_stick_y; // forward
+            double r = gamepad1.right_stick_x; // rotation
 
             move(y, x, r);
 
-            if (gamepad1.a){
+            if (gamepad1.a) {
                 intakeMotor.setPower(1);
-            }
-            else if (gamepad1.dpad_down){
-                intakeMotor.setPower(.8);
-            }
-            else{
+            } else if (gamepad1.dpad_down) {
+                intakeMotor.setPower(0.8);
+            } else {
                 intakeMotor.setPower(0.0);
             }
 
-            if (gamepad1.b && !prevStateB){
+            if (gamepad1.b && !prevStateB) {
                 elevatorMotor.setPower(1);
-            }else{
+            } else {
                 elevatorMotor.setPower(0);
             }
             prevStateB = gamepad1.b;
 
-            if(gamepad1.right_bumper && !prevStateRightBumper){
-                tunnelServo.setPosition(0.1); //pls fix
-            }else{
-                tunnelServo.setPosition(0);
+            if (gamepad1.right_bumper && !prevStateRightBumper) {
+                filterServo.setPosition(0.1);
+            } else {
+                filterServo.setPosition(0);
             }
             prevStateRightBumper = gamepad1.right_bumper;
 
-            if(gamepad1.right_trigger > 0.1){
+            if (gamepad1.right_trigger > 0.1) {
                 shooterMotor.setPower(1);
-            }
-            else{
+            } else {
                 shooterMotor.setPower(0);
             }
 
-
-
             // Read raw encoder ticks
-            int rawTicksX = right_front.getCurrentPosition(); //front is strafe
-            int rawTicksY = left_back.getCurrentPosition(); //front is strafe
-            int rawTicksY2 = left_front.getCurrentPosition(); //back is forward
+            int rawTicksX = rightFront.getCurrentPosition(); // front is strafe
+            int rawTicksY = leftBack.getCurrentPosition(); // front is strafe
+            int rawTicksY2 = leftFront.getCurrentPosition(); // back is forward
 
             // Calculate distance traveled in inches
             double distanceInchesX = rawTicksX * INCHES_PER_COUNT;
@@ -143,7 +139,6 @@ public class TeleOpBiobuzz extends LinearOpMode {
     }
 
     private void move(double y, double x, double r) {
-
         double leftFrontPower = y - x + r;
         double leftBackPower = y + x + r;
         double rightFrontPower = y + x - r;
@@ -155,9 +150,9 @@ public class TeleOpBiobuzz extends LinearOpMode {
         magnitude = Math.max(magnitude, Math.abs(rightFrontPower));
         magnitude = Math.max(magnitude, Math.abs(rightBackPower));
 
-        left_front.setPower(leftFrontPower / magnitude);
-        left_back.setPower(leftBackPower / magnitude);
-        right_front.setPower(rightFrontPower / magnitude);
-        right_back.setPower(rightBackPower / magnitude);
+        leftFront.setPower(leftFrontPower / magnitude);
+        leftBack.setPower(leftBackPower / magnitude);
+        rightFront.setPower(rightFrontPower / magnitude);
+        rightBack.setPower(rightBackPower / magnitude);
     }
 }
