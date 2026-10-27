@@ -11,38 +11,22 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @Autonomous(name = "BiobuzzAuto", group = "Robot")
 
 public class BiobuzzAuto extends LinearOpMode {
-
-
-    private DcMotor left_front = null;
-    private DcMotor right_front = null;
-    private DcMotor left_back = null;
-    private DcMotor right_back = null;
-
-    private DcMotor shooterMotor = null;
-    private DcMotor intakeMotor = null;
-    private DcMotor elevatorMotor = null;
-
-    private Servo tunnelServo = null;
+    //control hub 
+    private DcMotor leftFront = null; //0
+    private DcMotor leftBack = null //1
+    private DcMotor rightFront = null; //2
+    private DcMotor rightBack = null; //3
+    //expansion hub
+    private DcMotor intakeMotor = null; //0
+    private DcMotor shooterMotor = null; //1
+    private DcMotor elevatorMotor = null; //2
+    //control hub servo 
+    private Servo filterServo = null; //0
     
-    boolean shooterMotorstate = false;
-    boolean intakeMotorstate = false;
-    boolean elevatorMotorstate = false;
-
-    boolean tunnelState = false;
-    boolean fanState = false;
-    
-    boolean prevStateA = false;
-    boolean prevStateX = false;
-    boolean prevStateY = false;
-    boolean prevStateB = false;
-    boolean prevStatRightBumper = false;
-
     double shooterMotorPower = 0;
     double elevatorPower = 0;
 
-
-
-    private final double FORWARD_SPEED = 0.5;
+    private final double FORWARD_SPEED = 1.0;
 
     private ElapsedTime runtime = new ElapsedTime();
 
@@ -50,7 +34,7 @@ public class BiobuzzAuto extends LinearOpMode {
     // ----------------- Helper Methods -----------------
 
 
-    private void move(double x, double y, double rx, double duration) {
+    private void move(double x, double y, double r, double duration) {
 
         double leftFrontPower = (y - x + r)*FORWARD_SPEED;
         double leftBackPower = (y + x + r)*FORWARD_SPEED;
@@ -72,17 +56,16 @@ public class BiobuzzAuto extends LinearOpMode {
 
 
     private void moveAtAngle(double angleDegrees, double speed, double duration) {
-
+        //the angle starting from the right side of robot's front
         double radians = Math.toRadians(angleDegrees);
-        double y = -Math.cos(radians); // forward component
-        double x = Math.sin(radians);  // strafe component
+        double y = Math.sin(radians); // forward component
+        double x = Math.cos(radians);  // strafe component
         
         // call your existing move() function with calculated x/y
 
-        move(0, y, x, duration);
+        move(x, y, 0, duration);
 
     }
-
 
     private void stopDriveMotors() {
         left_front.setPower(0);
@@ -92,8 +75,8 @@ public class BiobuzzAuto extends LinearOpMode {
     }
 
 
-    private void setTunnelPosition(double tunnelPosition, double waitDuration) {
-        tunnelServo.setPosition(tunnelPosition);
+    private void setFilterPosition(double filterPosition, double waitDuration) {
+        filterServo.setPosition(filterPosition);
         delay(waitDuration);
     }
 
@@ -105,20 +88,22 @@ public class BiobuzzAuto extends LinearOpMode {
         }
     }
 
-
-    private void shooterMotorOn(boolean state, double power) {
-        shooterMotor.setPower(state ? -1*power : 0);
+    private void intakeMotorOn(boolean state) {
+        intakeMotor.setPower(state ? -1 : 0); 
+        /*
+            asks if the variable is true using the boolean and the quesiton mark
+            if true, first number. if false, second number
+        */
     }
-
 
     private void elevatorOn(boolean state) {
         elevatorMotor.setPower(state ? -1 : 0);
     }
 
-
-    private void intakeMotorOn(boolean state) {
-        intakeMotor.setPower(state ? -1 : 0);
+    private void shooterMotorOn(boolean state, double power) {
+        shooterMotor.setPower(state ? -1*power : 0);
     }
+
 
     // ----------------- Main Autonomous Routine -----------------
 
@@ -128,26 +113,25 @@ public class BiobuzzAuto extends LinearOpMode {
 
         // Initialize hardware
 
-        left_front = hardwareMap.get(DcMotor.class, "left_front");
-        right_front = hardwareMap.get(DcMotor.class, "right_front");
-        left_back = hardwareMap.get(DcMotor.class, "left_back");
-        right_back = hardwareMap.get(DcMotor.class, "right_back");
+        leftFront = hardwareMap.get(DcMotor.class, "leftFront");
+        leftBack = hardwareMap.get(DcMotor.class, "leftBack");
+        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
+        rightBack = hardwareMap.get(DcMotor.class, "rightBack");
 
         shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
         elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
 
-        tunnelServo = hardwareMap.get(Servo.class, "tunnelServo");
-
+        filterServo = hardwareMap.get(Servo.class, "filterServo");
 
         // Reverse motors on left side
+        leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
+        leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
+        rightBack.setDirection(DcMotorSimple.Direction.FORWARD);
 
-        left_front.setDirection(DcMotorSimple.Direction.REVERSE);
-        left_back.setDirection(DcMotorSimple.Direction.REVERSE);
 
-
-        tunnelServo.setPosition(0);
-
+        filterServo.setPosition(0); //set the filter to the right position
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
@@ -156,8 +140,8 @@ public class BiobuzzAuto extends LinearOpMode {
         waitForStart();
 
         if (opModeIsActive()) {
-
-            move(0, -1, 0, 1.5); // Move forwards?
+            // x: stafe, y:forward, r:rotation, duration:delay in seconds
+            move(0, 1, 0, 1.5); // Move forward 1.5 seconds
 
             delay(2); // Wait
 
@@ -165,7 +149,6 @@ public class BiobuzzAuto extends LinearOpMode {
 
 
             telemetry.addData("Status", "Autonomous Complete");
-
             telemetry.update();
 
         }
