@@ -2,50 +2,50 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @Autonomous(name = "AutoSimple", group = "Robot")
-
 public class AutoSimple extends LinearOpMode {
-    //control hub 
-    private DcMotorEx leftFront = null; //0 //odom forward 1
-    private DcMotorEx leftBack = null;//1  //odom forward 2
-    private DcMotorEx rightFront = null; //2 //odom strafe
-    private DcMotor rightBack = null; //3
-    //expansion hub
-    private DcMotor intakeMotor = null; //0
-    private DcMotor shooterMotor = null; //1
-    private DcMotor elevatorMotor = null; //2
-    //control hub servo 
-    private Servo filterServo = null; //0
-    
-    double shooterMotorPower = 0;
-    double elevatorPower = 0;
+    // Control Hub Motors
+    private DcMotor leftFront = null; 
+    private DcMotor leftBack = null;
+    private DcMotor rightFront = null; 
+    private DcMotor rightBack = null; 
 
+    // Expansion Hub Motors
+    private DcMotor intakeMotor = null; 
+    private DcMotor elevatorMotor = null;
+    private DcMotor shooterMotor = null; 
+
+    // Servos
+    private CRServo rightIntake = null;
+    private CRServo leftIntake = null;
+    
     TestBenchIMU bench = new TestBenchIMU();
 
     private final double FORWARD_SPEED = 1.0;
-
     private ElapsedTime runtime = new ElapsedTime();
 
+    // Constants for odometry
     final double COUNTS_PER_REV = 1900.0;
-    final double WHEEL_DIAMETER_INCHES = 1.88976; // e.g., 48mm odom wheel = 1.889 inches
+    final double WHEEL_DIAMETER_INCHES = 1.88976; 
     final double INCHES_PER_COUNT = (Math.PI * WHEEL_DIAMETER_INCHES) / COUNTS_PER_REV;
 
 
     // ----------------- Helper Methods -----------------
 
-
-    private void move(double x, double y, double r, double duration) {
-
-        double leftFrontPower = (y - x + r)*FORWARD_SPEED;
-        double leftBackPower = (y + x + r)*FORWARD_SPEED;
-        double rightFrontPower = (y + x - r)*FORWARD_SPEED;
-        double rightBackPower = (y - x - r)*FORWARD_SPEED;
+    /**
+     * Movement logic imported from TeleOpBiobuzz
+     */
+    private void move(double y, double x, double r) {
+        double leftFrontPower = y + x - r;
+        double leftBackPower = y - x - r;
+        double rightFrontPower = y - x + r;
+        double rightBackPower = y + x + r;
 
         double magnitude = 1.0;
         magnitude = Math.max(magnitude, Math.abs(leftFrontPower));
@@ -57,47 +57,42 @@ public class AutoSimple extends LinearOpMode {
         leftBack.setPower(leftBackPower / magnitude);
         rightFront.setPower(rightFrontPower / magnitude);
         rightBack.setPower(rightBackPower / magnitude);
-
     }
 
+    /**
+     * Move for a specific duration
+     */
+    private void move(double y, double x, double r, double duration) {
+        move(y, x, r);
+        delay(duration);
+        stopDriveMotors();
+    }
 
     private void moveAtAngle(double angleDegrees, double speed, double duration) {
-        //the angle starting from the right side of robot's front
         double radians = Math.toRadians(angleDegrees);
-        double y = Math.sin(radians); // forward component
-        double x = Math.cos(radians);  // strafe component
-        
-        // call your existing move() function with calculated x/y
-
-        move(x, y, 0, duration);
-
+        double y = Math.sin(radians) * speed; 
+        double x = Math.cos(radians) * speed;  
+        move(y, x, 0, duration);
     }
 
     private void moveByOdometry(double targetStrafeInches, double targetForwardInches) {
-        // Reset or grab starting positions
         int startStrafeTicks = rightFront.getCurrentPosition();
         int targetStrafeTicks = (int) (targetStrafeInches / INCHES_PER_COUNT);
 
         int startForwardTicks = leftFront.getCurrentPosition();
         int targetForwardTicks = (int) (targetForwardInches / INCHES_PER_COUNT);
     
+        // Strafe phase
         while (opModeIsActive() && Math.abs(rightFront.getCurrentPosition() - startStrafeTicks) < Math.abs(targetStrafeTicks)) {
-            // Apply drive power
-            move(0, Math.signum(targetStrafeInches) * FORWARD_SPEED, 0, 0.02);
-            
-            // Print live odometry telemetry while moving
+            move(0, Math.signum(targetStrafeInches) * FORWARD_SPEED, 0);
             telemetry.addData("Strafe Ticks", rightFront.getCurrentPosition());
-            telemetry.addData("Foward Ticks", leftFront.getCurrentPosition());
             telemetry.update();
         }
         
-        while (opModeIsActive() && Math.abs(rightFront.getCurrentPosition() - startForwardTicks) < Math.abs(targetForwardTicks)) {
-            // Apply drive power
-            move(Math.signum(targetForwardInches) * FORWARD_SPEED, 0, 0, 0.02);
-            
-            // Print live odometry telemetry while moving
-            telemetry.addData("Strafe Ticks", rightFront.getCurrentPosition());
-            telemetry.addData("Foward Ticks", leftFront.getCurrentPosition());
+        // Forward phase
+        while (opModeIsActive() && Math.abs(leftFront.getCurrentPosition() - startForwardTicks) < Math.abs(targetForwardTicks)) {
+            move(Math.signum(targetForwardInches) * FORWARD_SPEED, 0, 0);
+            telemetry.addData("Forward Ticks", leftFront.getCurrentPosition());
             telemetry.update();
         }
         stopDriveMotors();
@@ -111,86 +106,89 @@ public class AutoSimple extends LinearOpMode {
     }
 
 
-    private void setFilterPosition(double filterPosition, double waitDuration) {
-        filterServo.setPosition(filterPosition);
-        delay(waitDuration);
-    }
-
 
     private void delay(double seconds) {
         runtime.reset();
-        while (opModeIsActive() && runtime .seconds() < seconds) {
-            // Keep looping without blocking
+        while (opModeIsActive() && runtime.seconds() < seconds) {
+            // Idle
         }
     }
 
-    private void intakeMotorOn(boolean state) {
-        intakeMotor.setPower(state ? -1 : 0); 
-        /*
-            asks if the variable is true using the boolean and the quesiton mark
-            if true, first number. if false, second number
-        */
+    // Helper functions for robot mechanisms
+    private void intakeOn(double power) {
+        intakeMotor.setPower(power);
     }
 
-    private void elevatorOn(boolean state) {
-        elevatorMotor.setPower(state ? -1 : 0);
+    private void elevatorOn(double power) {
+        elevatorMotor.setPower(power);
     }
 
-    private void shooterMotorOn(boolean state, double power) {
-        shooterMotor.setPower(state ? -1*power : 0);
+    private void shooterOn(double power) {
+        shooterMotor.setPower(power);
+    }
+
+    private void setIntakeServos(double power) {
+        if (rightIntake != null && leftIntake != null) {
+            rightIntake.setPower(-power);
+            leftIntake.setPower(power);
+        }
     }
 
 
     // ----------------- Main Autonomous Routine -----------------
 
-
     @Override
     public void runOpMode() {
-
         // Initialize hardware
         bench.init(hardwareMap);
         
-        leftFront = hardwareMap.get(DcMotorEx.class, "leftFront");
-        leftBack = hardwareMap.get(DcMotorEx.class, "leftBack");
-        rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
+        rightIntake = hardwareMap.get(CRServo.class, "rightIntake");
+        leftIntake = hardwareMap.get(CRServo.class, "leftIntake");
+
+        leftFront = hardwareMap.get(DcMotor.class, "leftFront");
+        leftBack = hardwareMap.get(DcMotor.class, "leftBack");
+        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
         rightBack = hardwareMap.get(DcMotor.class, "rightBack");
 
-        shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
         elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
+        shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
 
-        filterServo = hardwareMap.get(Servo.class, "filterServo");
 
-        // Reset the encoder counts to zero at startup
-        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftBack.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        // Reverse motors on left side
+        // Set Directions to match TeleOpBiobuzz
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
         rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
         rightBack.setDirection(DcMotorSimple.Direction.FORWARD);
+        
+        intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        elevatorMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        shooterMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
 
-        filterServo.setPosition(0); //set the filter to the right position
-
-        telemetry.addData("Status", "Initialized");
+        telemetry.addData("Status", "Initialized and Ready");
         telemetry.update();
-
 
         waitForStart();
 
         if (opModeIsActive()) {
-            // x: stafe, y:forward, r:rotation, duration:delay in seconds
-            move(-1, 1, 0, 0.5); // Move left 0.5 seconds
+            // START OF AUTO SEQUENCE
+            
+            // Example: Move forward for 1.5 seconds at half speed
+            move(0, -0.5, 0, 1);
+            
+            // Example: Turn on shooter and intake servos
+//            shooterOn(0.7);
+//            setIntakeServos(1.0);
+//            delay(2.0);
+//
+//            // Stop everything
+//            shooterOn(0);
+//            setIntakeServos(0);
 
             telemetry.addData("Status", "Autonomous Complete");
             telemetry.update();
-
         }
     }
 }
