@@ -28,7 +28,10 @@ public class TeleOpBiobuzz extends LinearOpMode {
     
     //private Servo filterServo; //servo 0
     boolean isIntakeOn = false;
-    
+
+    private int robotDirection = -1;
+
+    private double shooterPower = 0.7;
     private boolean prevStateB;
     private boolean prevStateRightBumper;
 
@@ -76,8 +79,8 @@ public class TeleOpBiobuzz extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            double x = gamepad1.left_stick_x; // strafe
-            double y = gamepad1.left_stick_y; // forward
+            double x = robotDirection*gamepad1.left_stick_x; // strafe
+            double y = robotDirection*gamepad1.left_stick_y; // forward
             double r = gamepad1.right_stick_x; // rotation
 
             move(y, x, r);
@@ -101,25 +104,19 @@ public class TeleOpBiobuzz extends LinearOpMode {
 
 
             if (gamepad1.right_trigger > 0.1) {
-                shooterMotor.setPower(0.9);
-            } else if(gamepad1.left_trigger > 0.1){
+                shooterMotor.setPower(0.7);
+            } else if(gamepad1.left_trigger > 0.1) {
                 shooterMotor.setPower(-0.7);
+            }else if(gamepad1.dpad_left){
+                shooterMotor.setPower(0.6);
             } else {
                 shooterMotor.setPower(0);
             }
 
-//            if (gamepad1.rightBumperWasPressed()) {
-//                // Toggle the state (if true becomes false, if false becomes true)
-//                isIntakeOn = !isIntakeOn;
-//
-//                if (isIntakeOn) {
-//                    rightIntake.setPower(1);
-//                    leftIntake.setPower(-1);
-//                } else {
-//                    rightIntake.setPower(0);
-//                    leftIntake.setPower(0);
-//                }
-//            }
+            if (gamepad1.dpadUpWasPressed()) {
+                // Toggle the state
+                robotDirection = -1*robotDirection;
+            }
             if (gamepad1.right_bumper) {
                 rightIntake.setPower(-1);
                 leftIntake.setPower(1);
@@ -130,6 +127,8 @@ public class TeleOpBiobuzz extends LinearOpMode {
                 rightIntake.setPower(0);
                 leftIntake.setPower(0);
             }
+
+
 
 
             // Read raw encoder ticks
