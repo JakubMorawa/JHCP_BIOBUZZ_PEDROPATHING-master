@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.CRServo;
 
@@ -24,20 +25,22 @@ public class TeleOpBiobuzz extends LinearOpMode {
     //expansion hub
     private DcMotor intakeMotor; //0
     private DcMotor elevatorMotor; //1
-    private DcMotor shooterMotor; //2
+    private DcMotorEx shooterMotor; //2
     
     //private Servo filterServo; //servo 0
     boolean isIntakeOn = false;
 
     private int robotDirection = -1;
 
-    private double shooterPower = 0.7;
+    private int shooterSpeed = 700;
     private boolean prevStateB;
     private boolean prevStateRightBumper;
 
     // Constants for your specific odometry pod (update these!)
     final double COUNTS_PER_REV = 1900.0;
     final double WHEEL_DIAMETER_INCHES = 1.88976;
+    private double P = 20;
+    private double F = 10;
     final double INCHES_PER_COUNT = (Math.PI * WHEEL_DIAMETER_INCHES) / COUNTS_PER_REV;
 
     @Override
@@ -53,8 +56,13 @@ public class TeleOpBiobuzz extends LinearOpMode {
         rightBack = hardwareMap.get(DcMotor.class, "rightBack");
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
         elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
-        shooterMotor = hardwareMap.get(DcMotor.class, "shooterMotor");
-        //filterServo = hardwareMap.get(Servo.class, "filterServo");
+        shooterMotor = hardwareMap.get(DcMotorEx.class, "shooterMotor");
+
+        shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        double[] modeValues = {P, 0.0, 0.0, F};
+        PIDFCoefficients pidfCoefficients = new PIDFCoefficients(modeValues[0], modeValues[1], modeValues[2], modeValues[3]);
+        shooterMotor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,pidfCoefficients);
+
 
         // Reset the encoder counts to zero at startup
 //        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -104,13 +112,20 @@ public class TeleOpBiobuzz extends LinearOpMode {
 
 
             if (gamepad1.right_trigger > 0.1) {
-                shooterMotor.setPower(0.7);
+                shooterMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+                shooterMotor.setVelocity(shooterSpeed);
             } else if(gamepad1.left_trigger > 0.1) {
-                shooterMotor.setPower(-0.7);
-            }else if(gamepad1.dpad_left){
-                shooterMotor.setPower(0.6);
+                shooterMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+                shooterMotor.setVelocity(shooterSpeed);
             } else {
                 shooterMotor.setPower(0);
+            }
+
+            if(gamepad1.dpadLeftWasPressed()){
+                shooterSpeed -= 50;
+            }
+            if(gamepad1.dpadRightWasPressed()){
+                shooterSpeed += 50;
             }
 
             if (gamepad1.dpadUpWasPressed()) {
@@ -141,6 +156,10 @@ public class TeleOpBiobuzz extends LinearOpMode {
 //            double distanceInchesY = rawTicksY * INCHES_PER_COUNT;
 //            double distanceInchesY2 = rawTicksY2 * INCHES_PER_COUNT;
 
+            telemetry.addData("Shooter Speed-", shooterSpeed);
+            telemetry.addData("Actual Velocity", shooterMotor.getVelocity());
+            telemetry.addData("P", P);
+            telemetry.addData("F", F);
             telemetry.addData("Movement-", "");
             telemetry.addData("Strafe", x);
             telemetry.addData("Forward", y);
