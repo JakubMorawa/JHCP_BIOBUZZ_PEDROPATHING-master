@@ -6,10 +6,33 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
-import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.CRServo;
 
-
+/**
+ * TeleOp Controls for BioBuzz:
+ *
+ * Gamepad 1 (Driver):
+ * - Left Stick: Strafe (X) and Forward/Backward (Y)
+ * - Right Stick: Rotation (X)
+ * - Left Trigger (Hold): Precision Mode (40% Speed) AND Shooter Reverse
+ * - Right Trigger (Hold): Shooter Forward (target velocity)
+ * - Back Button: Toggle Field-Centric vs Robot-Centric
+ * - Start Button: Reset IMU Heading (sets current front as "forward")
+ * - D-Pad Up: Flip Robot Front (Robot-Centric mode only)
+ * - D-Pad Left/Right: Adjust Shooter Velocity (-/+ 50)
+ * - A Button: Intake Motor IN
+ * - B Button: Elevator UP + Intake Motor IN
+ * - Y Button: Elevator DOWN + Intake Motor OUT
+ * - Right Bumper: Intake Servos IN
+ * - Left Bumper: Intake Servos OUT
+ *
+ * Gamepad 2 (Tuning):
+ * - D-Pad Right/Left: Adjust P (+/-)
+ * - D-Pad Up/Down: Adjust F (+/-)
+ * - X/B Button: Adjust I (-/+)
+ * - Right Bumper: Cycle Increment (10, 1, 0.1, 0.01)
+ * - A Button: Apply/Save PIDF values
+ */
 @TeleOp(name = "TeleOp BioBuzz", group = "Test")
 public class TeleOpBiobuzz extends LinearOpMode {
 
@@ -17,41 +40,38 @@ public class TeleOpBiobuzz extends LinearOpMode {
     TestBenchIMU bench = new TestBenchIMU();
     private CRServo rightIntake = null;
     private CRServo leftIntake = null;
-    //control hub
-    private DcMotor leftFront; //0 forward1
-    private DcMotor leftBack; //1 forward2
-    private DcMotor rightFront; //2 strafe
-    private DcMotor rightBack; //3
-    //expansion hub
-    private DcMotor intakeMotor; //0
-    private DcMotor elevatorMotor; //1
-    private DcMotorEx shooterMotor; //2
+    
+    // Control hub motors
+    private DcMotor leftFront;
+    private DcMotor leftBack;
+    private DcMotor rightFront;
+    private DcMotor rightBack;
+    
+    // Expansion hub motors
+    private DcMotor intakeMotor;
+    private DcMotor elevatorMotor;
+    private DcMotorEx shooterMotor;
 
-    //private Servo filterServo; //servo 0
-    boolean isIntakeOn = false;
-
+    // --- Settings & Toggles ---
+    private double elevatorPower = 0.75;
+    private int targetVelocity = 1250;
     private int robotDirection = -1;
-
-    private int shooterSpeed = 700;
-
-    // Constants for your specific odometry pod (update these!)
-    final double COUNTS_PER_REV = 1900.0;
-    final double WHEEL_DIAMETER_INCHES = 1.88976;
-    private double P = 130;
-    private double I = 2;
-    private double F = 17;
-
-    private double[] changeList = {10, 1, 0.1, 0.01};
+    
+    // Default to Robot-Centric (false). Change to true if you prefer Field-Centric at start.
+    private boolean isFieldCentric = false; 
+    private double speedMultiplier = 1.0;  // For precision mode
+    
+    // --- PIDF Tuning ---
+    private double P = 130, I = 2, F = 17;
+    private final double[] changeList = {10, 1, 0.1, 0.01};
     private int changeListIndex = 0;
-    final double INCHES_PER_COUNT = (Math.PI * WHEEL_DIAMETER_INCHES) / COUNTS_PER_REV;
 
     @Override
     public void runOpMode() {
-        // Initialize the hardware map
+        // Initialize Hardware
         bench.init(hardwareMap);
         rightIntake = hardwareMap.get(CRServo.class, "rightIntake");
         leftIntake = hardwareMap.get(CRServo.class, "leftIntake");
-
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
         rightFront = hardwareMap.get(DcMotor.class, "rightFront");
@@ -60,22 +80,20 @@ public class TeleOpBiobuzz extends LinearOpMode {
         elevatorMotor = hardwareMap.get(DcMotor.class, "elevatorMotor");
         shooterMotor = hardwareMap.get(DcMotorEx.class, "shooterMotor");
 
+        // Set drive motors to BRAKE for better control
+        DcMotor[] driveMotors = {leftFront, leftBack, rightFront, rightBack};
+        for (DcMotor motor : driveMotors) {
+            motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        }
+
         shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         setPIDFValues();
 
-        // Reset the encoder counts to zero at startup
-//        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-//        leftFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-//        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-//        leftBack.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-//        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-//        rightFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
+        // Directions
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
         rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
         rightBack.setDirection(DcMotorSimple.Direction.FORWARD);
-
         intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         elevatorMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         shooterMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -85,53 +103,70 @@ public class TeleOpBiobuzz extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            double x = robotDirection * gamepad1.left_stick_x; // strafe
-            double y = robotDirection * gamepad1.left_stick_y; // forward
-            double r = gamepad1.right_stick_x; // rotation
+            // --- 1. DRIVE LOGIC ---
+            
+            // scaleInput cubes the stick values (x^3) for better fine control
+            double lx = scaleInput(gamepad1.left_stick_x);
+            double ly = scaleInput(gamepad1.left_stick_y);
+            double rx = scaleInput(gamepad1.right_stick_x);
 
-            move(y, x, r);
-
-            //if b, then pollen goes up
-            //if y, then pollen goes down
-            if (gamepad1.b) {
-                elevatorMotor.setPower(1);
-            } else if (gamepad1.y) {
-                elevatorMotor.setPower(-1);
-            } else {
-                elevatorMotor.setPower(0);
+            // Toggle Field-Centric Mode (Back/Options Button)
+            if (gamepad1.backWasPressed()) {
+                isFieldCentric = !isFieldCentric;
             }
 
-            if (gamepad1.a || gamepad1.b) {
-                intakeMotor.setPower(1);
-            } else if (gamepad1.y) {
-                intakeMotor.setPower(-1);
+            // Reset IMU heading (Start Button)
+            // Use this if your "Forward" direction drifts during a match
+            if (gamepad1.startWasPressed()) {
+                bench.init(hardwareMap); 
+            }
+
+            // Slow/Precision Mode (Hold Left Trigger for 40% speed)
+            speedMultiplier = (gamepad1.left_trigger > 0.1) ? 0.4 : 1.0;
+
+            if (isFieldCentric) {
+                driveFieldCentric(ly, lx, rx);
             } else {
+                // Robot-Centric uses the robotDirection toggle
+                move(ly * robotDirection, lx * robotDirection, rx);
+            }
+
+            // Reverse Robot Front (Only affects Robot-Centric)
+            if (gamepad1.dpadUpWasPressed()) {
+                robotDirection *= -1;
+            }
+
+            // --- 2. MECHANISMS (Elevator & Intake) ---
+            if (gamepad1.b) {
+                elevatorMotor.setPower(elevatorPower);
+                intakeMotor.setPower(1.0);
+            } else if (gamepad1.y) {
+                elevatorMotor.setPower(-elevatorPower);
+                intakeMotor.setPower(-1.0);
+            } else if (gamepad1.a) {
+                intakeMotor.setPower(1.0);
+                elevatorMotor.setPower(0);
+            } else {
+                elevatorMotor.setPower(0);
                 intakeMotor.setPower(0);
             }
 
+            // --- 3. SHOOTER (Triggers) ---
             if (gamepad1.right_trigger > 0.1) {
                 shooterMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-                shooterMotor.setVelocity(shooterSpeed);
+                shooterMotor.setVelocity(targetVelocity);
             } else if (gamepad1.left_trigger > 0.1) {
                 shooterMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-                shooterMotor.setVelocity(shooterSpeed);
-            } else if (gamepad1.x) {
-                //shooterMotor.setPower(1);
+                shooterMotor.setVelocity(targetVelocity);
             } else {
                 shooterMotor.setPower(0);
             }
 
-            if (gamepad1.dpadLeftWasPressed()) {
-                shooterSpeed -= 50;
-            }
-            if (gamepad1.dpadRightWasPressed()) {
-                shooterSpeed += 50;
-            }
+            // Shooter target tuning
+            if (gamepad1.dpadLeftWasPressed()) targetVelocity -= 50;
+            if (gamepad1.dpadRightWasPressed()) targetVelocity += 50;
 
-            if (gamepad1.dpadUpWasPressed()) {
-                // Toggle the state
-                robotDirection = -1 * robotDirection;
-            }
+            // --- 4. INTAKE SERVOS (Bumpers) ---
             if (gamepad1.right_bumper) {
                 rightIntake.setPower(-1);
                 leftIntake.setPower(1);
@@ -143,94 +178,89 @@ public class TeleOpBiobuzz extends LinearOpMode {
                 leftIntake.setPower(0);
             }
 
-            double change = changeList[changeListIndex];
-            //game pad 2 shenanigans
-            if (gamepad2.dpadRightWasPressed()) {
-                P += change;
-            } else if (gamepad2.dpadLeftWasPressed()) {
-                P -= change;
-            } else if (gamepad2.dpadUpWasPressed()) {
-                F += change;
-            } else if (gamepad2.dpadDownWasPressed()) {
-                F -= change;
-            } else if (gamepad2.xWasPressed()) {
-                I -= change;
-            } else if (gamepad2.bWasPressed()) {
-                I += change;
-            }
+            // --- 5. PIDF TUNING (Gamepad 2) ---
+            handlePIDFTuning();
 
-            if (gamepad2.rightBumperWasPressed()) {
-                changeListIndex = (changeListIndex + 1) % 4;
-            }
-            setPIDFValues();
-
-
-            // Read raw encoder ticks
-//            int rawTicksX = rightFront.getCurrentPosition(); // front is strafe
-//            int rawTicksY = leftBack.getCurrentPosition(); // front is strafe
-//            int rawTicksY2 = leftFront.getCurrentPosition(); // back is forward
-//
-//            // Calculate distance traveled in inches
-//            double distanceInchesX = rawTicksX * INCHES_PER_COUNT;
-//            double distanceInchesY = rawTicksY * INCHES_PER_COUNT;
-//            double distanceInchesY2 = rawTicksY2 * INCHES_PER_COUNT;
-            telemetry.addLine("Velocity");
-            telemetry.addData("Target Velocity", shooterSpeed);
-            telemetry.addData("Actual Velocity", shooterMotor.getVelocity());
-            telemetry.addLine("PIDF VALUE");
-            telemetry.addData("P", P);
-            telemetry.addData("I", I);
-            telemetry.addData("F", F);
-            telemetry.addData("Amount Change", change);
-            telemetry.addLine("Movement-");
-            telemetry.addData("Strafe", x);
-            telemetry.addData("Forward", y);
-            telemetry.addData("Rotate", r);
-
-            // Display data on Driver Hub screen
-//            telemetry.addData("Odometry Pods-", "");
-//            telemetry.addData("Raw Ticks X", rawTicksX);
-//            telemetry.addData("Raw Ticks Y", rawTicksY);
-//            telemetry.addData("Raw Ticks Y2", rawTicksY2);
-//            telemetry.addData("X-axis Distance (in)", "%.2f", distanceInchesX);
-//            telemetry.addData("Y-axis Distance (in)", "%.2f", distanceInchesY);
-//            telemetry.addData("Y2-axis Distance (in)", "%.2f", distanceInchesY2);
-
-            telemetry.addLine("IMU-");
-            telemetry.addData("Heading", bench.getHeading());
-            telemetry.addData("Pitch", bench.getPitch());
-            telemetry.addData("Roll", bench.getRoll());
-
-            telemetry.update();
+            // --- 6. TELEMETRY ---
+            updateTelemetry(lx, ly, rx);
         }
     }
 
-    private void teleopHeadingAndStatus() {
-        telemetry.addData("Status", "Initialized. Ready to start.");
-        telemetry.update();
+    /**
+     * Field-Centric drive logic.
+     * This "rotates" the joystick vector so that Forward is always away from the driver.
+     */
+    private void driveFieldCentric(double y, double x, double r) {
+        // Get the current angle of the robot from the IMU
+        double botHeading = Math.toRadians(-bench.getHeading());
+
+        // Rotate the movement vector by the robot's heading
+        // This is standard 2D rotation math
+        double rotX = x * Math.cos(botHeading) - y * Math.sin(botHeading);
+        double rotY = x * Math.sin(botHeading) + y * Math.cos(botHeading);
+
+        move(rotY, rotX, r);
     }
 
     private void move(double y, double x, double r) {
-        double leftFrontPower = y + x - r;
-        double leftBackPower = y - x - r;
-        double rightFrontPower = y - x + r;
-        double rightBackPower = y + x + r;
+        double lf = (y + x - r) * speedMultiplier;
+        double lb = (y - x - r) * speedMultiplier;
+        double rf = (y - x + r) * speedMultiplier;
+        double rb = (y + x + r) * speedMultiplier;
 
-        double magnitude = 1.0;
-        magnitude = Math.max(magnitude, Math.abs(leftFrontPower));
-        magnitude = Math.max(magnitude, Math.abs(leftBackPower));
-        magnitude = Math.max(magnitude, Math.abs(rightFrontPower));
-        magnitude = Math.max(magnitude, Math.abs(rightBackPower));
+        // Ensure power levels stay between -1.0 and 1.0
+        double max = Math.max(1.0, Math.abs(lf));
+        max = Math.max(max, Math.abs(lb));
+        max = Math.max(max, Math.abs(rf));
+        max = Math.max(max, Math.abs(rb));
 
-        leftFront.setPower(leftFrontPower / magnitude);
-        leftBack.setPower(leftBackPower / magnitude);
-        rightFront.setPower(rightFrontPower / magnitude);
-        rightBack.setPower(rightBackPower / magnitude);
+        leftFront.setPower(lf / max);
+        leftBack.setPower(lb / max);
+        rightFront.setPower(rf / max);
+        rightBack.setPower(rb / max);
+    }
+
+    private double scaleInput(double input) {
+        // Cubic scaling (input^3) gives much better precision at low stick values
+        // while still maintaining 100% speed at the full stick push.
+        if (Math.abs(input) < 0.05) return 0; // Small deadzone
+        return input * input * input;
+    }
+
+    private void handlePIDFTuning() {
+        double change = changeList[changeListIndex];
+        if (gamepad2.dpadRightWasPressed()) P += change;
+        if (gamepad2.dpadLeftWasPressed())  P -= change;
+        if (gamepad2.dpadUpWasPressed())    F += change;
+        if (gamepad2.dpadDownWasPressed())  F -= change;
+        if (gamepad2.xWasPressed())         I -= change;
+        if (gamepad2.bWasPressed())         I += change;
+        
+        if (gamepad2.rightBumperWasPressed()) {
+            changeListIndex = (changeListIndex + 1) % changeList.length;
+        }
+        
+        if (gamepad2.aWasPressed()) setPIDFValues();
+    }
+
+    private void updateTelemetry(double lx, double ly, double rx) {
+        telemetry.addData("Mode", isFieldCentric ? "FIELD-CENTRIC" : "ROBOT-CENTRIC");
+        telemetry.addData("Speed Mode", speedMultiplier < 1.0 ? "PRECISION (40%)" : "FULL SPEED");
+        telemetry.addLine("--- Shooter ---");
+        telemetry.addData("Vel (Target/Actual)", "%d / %.1f", targetVelocity, shooterMotor.getVelocity());
+        telemetry.addData("PIDF", "P:%.1f I:%.1f F:%.1f", P, I, F);
+        telemetry.addLine("--- Drive ---");
+        telemetry.addData("Heading", "%.2f", bench.getHeading());
+        telemetry.update();
+    }
+
+    private void teleopHeadingAndStatus() {
+        telemetry.addData("Status", "Initialized. Robot-Centric Active.");
+        telemetry.update();
     }
 
     public void setPIDFValues() {
-        double[] modeValues = {P, I, 0.0, F};
-        PIDFCoefficients pidfCoefficients = new PIDFCoefficients(modeValues[0], modeValues[1], modeValues[2], modeValues[3]);
-        shooterMotor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
+        PIDFCoefficients pidf = new PIDFCoefficients(P, I, 0.0, F);
+        shooterMotor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
     }
 }
